@@ -1,9 +1,11 @@
 from __future__ import division
 import argparse
-import psycopg2, psycopg2.extras
+import psycopg2
+import psycopg2.extras
 import math
 import sys
 from decimal import Decimal
+
 
 def make_indexdef_concurrent(indexdef):
     if indexdef.startswith("CREATE INDEX "):
@@ -14,6 +16,7 @@ def make_indexdef_concurrent(indexdef):
         raise ValueError("Unknown index creation: {}".format(indexdef))
 
     return indexdef
+
 
 def indexsizes(cursor):
     sql = """SELECT                       
@@ -83,9 +86,7 @@ def indexsizes(cursor):
                 'def': row['indexdef'],
                 'wasted': row['wastedibytes'],
                 'indexdef': make_indexdef_concurrent(row['indexdef']),
-                }
-
-
+            }
 
     objs = objs.values()
     objs.sort(key=lambda t: t['wasted'], reverse=True)
@@ -104,8 +105,6 @@ def main():
     connect_args = {}
     if args.database is not None:
         connect_args['database'] = args.database
-
-
 
     conn = psycopg2.connect(**connect_args)
 
@@ -150,8 +149,6 @@ def main():
         # TODO in future look at disk space and keep going
         break
 
-
-    
 
 if __name__ == '__main__':
     main()
