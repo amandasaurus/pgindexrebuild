@@ -100,12 +100,15 @@ def indexsizes(cursor):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
+    parser.add_argument('-U', '--user', type=str, required=True, help="PostgreSQL database user")
     parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
     args = parser.parse_args()
 
     connect_args = {}
     if args.database is not None:
         connect_args['database'] = args.database
+    if args.user is not None:
+        connect_args['user'] = args.user
 
     conn = psycopg2.connect(**connect_args)
 
