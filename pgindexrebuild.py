@@ -23,6 +23,26 @@ def make_indexdef_concurrent(indexdef):
 
     return indexdef
 
+def index_size(cursor, iname):
+    cursor.execute("select pg_relation_size(pg_class.oid) FROM pg_class WHERE relname = %s;", (iname,))
+    size = cursor.fetchone()[0]
+    return size
+
+def size_pretty(b):
+    if b >= 1024 * 1024 * 1024:
+        # GB
+        return "{:.2}GiB".format(b / (1024 * 1024 * 1024))
+    elif b >= 1024 * 1024:
+        # MB
+        return "{:.2}MiB".format(b / (1024 * 1024))
+    elif b >= 1024:
+        # KB
+        return "{:.2}KiB".format(b / (1024))
+    else:
+        # B
+        return "{}B".format(b)
+
+
 
 def indexsizes(cursor):
     """Return the sizes of all the indexes."""
@@ -131,8 +151,11 @@ def main():
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
     print "used:   {:>20,}\nwasted: {:>20,}".format(total_used, total_wasted)
 
+    total_savings = 0.0
+
     while True:
         print "\n\nStart of loop\n"
+
 
         for obj in objs:
             if obj['wasted'] == 0:
@@ -145,6 +168,7 @@ def main():
                 print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,} because it has a unique contrainst".format(**obj)
                 continue
 
+            oldsize = index_size(cursor, obj['name'])
             print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
 
             if not args.dry_run:
@@ -157,8 +181,15 @@ def main():
 
                 cursor.execute("DROP INDEX {t}_old;".format(t=obj['name']))
 
+                newsize = index_size(cursor, obj['name'])
+                delta_size = newsize - oldsize
+                total_savings += delta_size
+                print "Saved {} ({}) {:%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize)
+
         # TODO in future look at disk space and keep going
         break
+
+    print "Finish. Saved {} ({}) in total".format(size_pretty(total_savings), total_savings)
 
 
 if __name__ == '__main__':
