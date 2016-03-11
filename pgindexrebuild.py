@@ -121,7 +121,8 @@ def main():
         print "\n\nStart of loop\n"
 
         for obj in objs:
-            if obj['schemaname'] == 'pg_catalog':
+            if obj['wasted'] == 0:
+                print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>10,}".format(**obj)
                 continue
 
             print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>10,}".format(**obj)
