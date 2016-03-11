@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="pgindexrebuild",
-    version="0.2.0",
+    version="0.3.0",
     author="Rory McCann",
     author_email="rory@geofabrik.de",
     py_modules=['pgindexrebuild'],
