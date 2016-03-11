@@ -94,7 +94,7 @@ def indexsizes(cursor):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('-d', '--database', type=str, required=False, help="PostgreSQL database name")
+    parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
     args = parser.parse_args()
 
     connect_args = {}
