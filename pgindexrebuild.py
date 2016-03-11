@@ -149,7 +149,7 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    print "used:   {:>20,}\nwasted: {:>20,}".format(total_used, total_wasted)
+    print "used:   {} ({:,})\nwasted: {} ({:,})".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted)
 
     total_savings = 0.0
 
@@ -165,11 +165,11 @@ def main():
                 # FIXME Better unique index detection
                 # FIXME Don't skip unique indexes, instead figure out how to
                 # recreate the unique contraint, like we do with PRIMARY KEYS
-                print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,} because it has a unique contrainst".format(**obj)
+                print "Skipping Index {} size {} ({:,}) wasted {} ({:,}) because it has a unique constrainst".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'])
                 continue
 
             oldsize = index_size(cursor, obj['name'])
-            print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
+            print "Reindexing {} size {} ({:,}) wasted {} ({:,})".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'])
 
             if not args.dry_run:
                 cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
@@ -184,12 +184,12 @@ def main():
                 newsize = index_size(cursor, obj['name'])
                 delta_size = newsize - oldsize
                 total_savings += delta_size
-                print "Saved {} ({}) {:%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize)
+                print "Saved {} ({:,}) {:%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize)
 
         # TODO in future look at disk space and keep going
         break
 
-    print "Finish. Saved {} ({}) in total".format(size_pretty(total_savings), total_savings)
+    print "Finish. Saved {} ({:,}) in total".format(size_pretty(total_savings), total_savings)
 
 
 if __name__ == '__main__':
