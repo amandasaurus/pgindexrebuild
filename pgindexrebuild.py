@@ -71,14 +71,6 @@ def indexsizes(cursor):
 
     objs = {}
     for row in cursor.fetchall():
-        objs["{}.{}".format(row['schemaname'], row['tablename'])] = {
-                'schemaname': row['schemaname'],
-                'tablename': row['tablename'],
-                'name': row['tablename'],
-                'size': row['relpages'] * 8192,
-                'type': 'table',
-                'wasted': row['wastedbytes'],
-            }
         if row['indexdef']:
             objs["{}.{}".format(row['schemaname'], row['iname'])] = {
                 'schemaname': row['schemaname'],
@@ -129,8 +121,6 @@ def main():
         print "\n\nStart of loop\n"
 
         for obj in objs:
-            if obj['type'] != 'index':
-                continue
             if obj['schemaname'] == 'pg_catalog':
                 continue
 
