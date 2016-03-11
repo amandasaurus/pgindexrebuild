@@ -100,6 +100,7 @@ def indexsizes(cursor):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
+    parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
     args = parser.parse_args()
 
     connect_args = {}
@@ -136,15 +137,15 @@ def main():
 
             print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
 
-            cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
-            cursor.execute(obj['indexdef'])
-            cursor.execute("ANALYSE {t};".format(t=obj['name']))
+            if not args.dry_run:
+                cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
+                cursor.execute(obj['indexdef'])
+                cursor.execute("ANALYSE {t};".format(t=obj['name']))
 
-            if obj['primary']:
-                cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old, ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
+                if obj['primary']:
+                    cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old, ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
 
-
-            cursor.execute("DROP INDEX {t}_old;".format(t=obj['name']))
+                cursor.execute("DROP INDEX {t}_old;".format(t=obj['name']))
 
         # TODO in future look at disk space and keep going
         break
