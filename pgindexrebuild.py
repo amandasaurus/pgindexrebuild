@@ -92,7 +92,7 @@ def indexsizes(cursor):
     objs.sort(key=lambda t: t['wasted'])
 
     # TODO should probably do this in the SQL query above.
-    objs = [o for o in objs if o['schemaname'] != 'pg_catalog']
+    objs = [o for o in objs if o['schemaname'] != 'pg_catalog' and o['wasted'] > 0]
 
     return objs
 
