@@ -1,3 +1,8 @@
+"""
+Reindexes indexes to save space, but does it in a non-locking manner.
+
+This recovers space from index bloat.
+"""
 from __future__ import division
 import argparse
 import psycopg2
@@ -8,6 +13,7 @@ from decimal import Decimal
 
 
 def make_indexdef_concurrent(indexdef):
+    """Turn an index creation statement into a concurrent index creationstatement."""
     if indexdef.startswith("CREATE INDEX "):
         indexdef = indexdef.replace("CREATE INDEX ", "CREATE INDEX CONCURRENTLY ", 1)
     elif indexdef.startswith("CREATE UNIQUE INDEX "):
@@ -19,6 +25,7 @@ def make_indexdef_concurrent(indexdef):
 
 
 def indexsizes(cursor):
+    """Return the sizes of all the indexes."""
     sql = """SELECT                       
           current_database(), schemaname, tablename, reltuples::bigint, relpages::bigint, otta,
           ROUND(CASE WHEN otta=0 THEN 0.0 ELSE sml.relpages/otta::numeric END,1) AS tbloat,
