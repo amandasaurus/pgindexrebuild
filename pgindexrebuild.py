@@ -115,7 +115,7 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    print "DB used: {:,}\nDB wasted: {:,}".format(total_used, total_wasted)
+    print "DB used:   {:>20,}\nDB wasted: {:>20,}".format(total_used, total_wasted)
 
     while True:
         print "\n\nStart of loop\n"
@@ -124,7 +124,7 @@ def main():
             if obj['schemaname'] == 'pg_catalog':
                 continue
 
-            print "Reindexing {name:>50} size {size:>10} wasted {wasted:>10}".format(**obj)
+            print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>10,}".format(**obj)
 
             cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
             cursor.execute(obj['indexdef'])
