@@ -100,7 +100,7 @@ def indexsizes(cursor):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
-    parser.add_argument('-U', '--user', type=str, required=True, help="PostgreSQL database user")
+    parser.add_argument('-U', '--user', type=str, required=False, help="PostgreSQL database user")
     parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
     args = parser.parse_args()
 
