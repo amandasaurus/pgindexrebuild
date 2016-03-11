@@ -126,16 +126,19 @@ def main():
 
         for obj in objs:
             if obj['wasted'] == 0:
-                print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>10,}".format(**obj)
+                print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
                 continue
 
-            print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>10,}".format(**obj)
+            print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
 
             cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
             cursor.execute(obj['indexdef'])
             cursor.execute("ANALYSE {t};".format(t=obj['name']))
+
             if obj['primary']:
                 cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old, ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
+
+
             cursor.execute("DROP INDEX {t}_old;".format(t=obj['name']))
 
         # TODO in future look at disk space and keep going
