@@ -89,6 +89,10 @@ def indexsizes(cursor):
 
     objs = objs.values()
     objs.sort(key=lambda t: t['wasted'], reverse=True)
+
+    # FIXME should probably do this in the SQL query above.
+    objs = [o for o in objs if o['schemaname'] != 'pg_catalog']
+
     return objs
 
 
