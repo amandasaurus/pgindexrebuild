@@ -31,13 +31,13 @@ def index_size(cursor, iname):
 def size_pretty(b):
     if b >= 1024 * 1024 * 1024:
         # GB
-        return "{:.2}GiB".format(b / (1024 * 1024 * 1024))
+        return "{:.1f}GiB".format(b / (1024 * 1024 * 1024))
     elif b >= 1024 * 1024:
         # MB
-        return "{:.2}MiB".format(b / (1024 * 1024))
+        return "{:.1f}MiB".format(b / (1024 * 1024))
     elif b >= 1024:
         # KB
-        return "{:.2}KiB".format(b / (1024))
+        return "{:.1f}KiB".format(b / (1024))
     else:
         # B
         return "{}B".format(b)
