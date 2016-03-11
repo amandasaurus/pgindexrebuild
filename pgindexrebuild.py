@@ -128,6 +128,12 @@ def main():
             if obj['wasted'] == 0:
                 print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
                 continue
+            if ' UNIQUE ' in obj['indexdef'].upper():
+                # FIXME Better unique index detection
+                # FIXME Don't skip unique indexes, instead figure out how to
+                # recreate the unique contraint, like we do with PRIMARY KEYS
+                print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,} because it has a unique contrainst".format(**obj)
+                continue
 
             print "Reindexing {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
 
