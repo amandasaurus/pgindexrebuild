@@ -122,7 +122,7 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    print "DB used:   {:>20,}\nDB wasted: {:>20,}".format(total_used, total_wasted)
+    print "used:   {:>20,}\nwasted: {:>20,}".format(total_used, total_wasted)
 
     while True:
         print "\n\nStart of loop\n"
