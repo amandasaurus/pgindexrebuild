@@ -149,7 +149,7 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    print "used:   {} ({:,})\nwasted: {} ({:,}) {:%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted)/float(total_used))
+    print "used:   {} ({:,})\nwasted: {} ({:,}) {:.0%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted)/float(total_used))
 
     total_savings = 0.0
 
@@ -169,7 +169,7 @@ def main():
                 continue
 
             oldsize = index_size(cursor, obj['name'])
-            print "Reindexing {} size {} ({:,}) wasted {} ({:,}) {:%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted'])/obj['size'])
+            print "Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted'])/obj['size'])
 
             if not args.dry_run:
                 cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
@@ -184,7 +184,7 @@ def main():
                 newsize = index_size(cursor, obj['name'])
                 delta_size = newsize - oldsize
                 total_savings += delta_size
-                print "Saved {} ({:,}) {:%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize)
+                print "Saved {} ({:,}) {:.0%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize)
 
         # TODO in future look at disk space and keep going
         break
