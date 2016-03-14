@@ -1,3 +1,24 @@
+<a name="v0.4.0"></a>
+## v0.4.0 (2016-03-14)
+
+
+#### Bug Fixes
+
+*   Don't show 6  decimal places for percentages ([66f1c1e2](66f1c1e2))
+*   size_pretty supports negative numbers ([2a01efe3](2a01efe3))
+*   Only include things in public schema. ([6196512d](6196512d))
+*   Remove objects with zero wasted space ([efd21026](efd21026))
+*   Make -U/--user not be a required option ([0cd7f2a9](0cd7f2a9))
+
+#### Features
+
+*   Gracefully handle a previously interuppted job ([02095201](02095201))
+*   Print out percentage wasted ([0b71052f](0b71052f))
+*   Output for sizes uses pretty printing ([e6ea6f60](e6ea6f60))
+*   Show how much disk space was saved each time & at end ([90f6e53e](90f6e53e))
+
+
+
 <a name="v0.3.0"></a>
 ## v0.3.0 (2016-03-11)
 
