@@ -30,6 +30,13 @@ def index_size(cursor, iname):
     return size
 
 
+def does_index_exist(cursor, iname):
+    cursor.execute("select 1 from pg_indexes where schemaname = 'public' and indexname = %s limit 1;", (iname,))
+    result = cursor.fetchone()
+    return result == [1]
+
+
+
 def size_pretty(b):
     if abs(b) >= 1024 * 1024 * 1024:
         # GB
@@ -172,14 +179,20 @@ def main():
             print "Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted']) / obj['size'])
 
             if not args.dry_run:
-                cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
+                old_index_name = "{t}_old".format(t=obj['name'])
+
+                if does_index_exist(cursor, old_index_name):
+                    print "The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:\n    DROP INDEX {old};\nProcessing will continue with the rest of the indexes".format(old=old_index_name)
+                    continue
+
+                cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
                 cursor.execute(obj['indexdef'])
                 cursor.execute("ANALYSE {t};".format(t=obj['name']))
 
                 if obj['primary']:
                     cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old, ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
 
-                cursor.execute("DROP INDEX {t}_old;".format(t=obj['name']))
+                cursor.execute("DROP INDEX {old};".format(old=old_index_name))
 
                 newsize = index_size(cursor, obj['name'])
                 delta_size = newsize - oldsize
