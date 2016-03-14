@@ -23,10 +23,12 @@ def make_indexdef_concurrent(indexdef):
 
     return indexdef
 
+
 def index_size(cursor, iname):
     cursor.execute("select pg_relation_size(pg_class.oid) FROM pg_class WHERE relname = %s;", (iname,))
     size = cursor.fetchone()[0]
     return size
+
 
 def size_pretty(b):
     if abs(b) >= 1024 * 1024 * 1024:
@@ -41,7 +43,6 @@ def size_pretty(b):
     else:
         # B
         return "{}B".format(b)
-
 
 
 def indexsizes(cursor):
@@ -149,13 +150,12 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    print "used:   {} ({:,})\nwasted: {} ({:,}) {:.0%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted)/float(total_used))
+    print "used:   {} ({:,})\nwasted: {} ({:,}) {:.0%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted) / float(total_used))
 
     total_savings = 0.0
 
     while True:
         print "\n\nStart of loop\n"
-
 
         for obj in objs:
             if obj['wasted'] == 0:
@@ -169,7 +169,7 @@ def main():
                 continue
 
             oldsize = index_size(cursor, obj['name'])
-            print "Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted'])/obj['size'])
+            print "Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted']) / obj['size'])
 
             if not args.dry_run:
                 cursor.execute("ALTER INDEX {t} RENAME TO {t}_old;".format(t=obj['name']))
