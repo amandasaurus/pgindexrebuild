@@ -1,3 +1,13 @@
+<a name="v0.5.0"></a>
+## v0.5.0 (2016-03-15)
+
+
+#### Features
+
+*   Use python logging framework to show log messages ([dec0f3c5](dec0f3c5))
+
+
+
 <a name="v0.4.0"></a>
 ## v0.4.0 (2016-03-14)
 
