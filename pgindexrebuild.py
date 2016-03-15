@@ -205,7 +205,7 @@ def main():
 
                 newsize = index_size(cursor, obj['name'])
                 delta_size = newsize - oldsize
-                total_savings += delta_size
+                total_savings += -delta_size
                 logger.info("Saved {} ({:,}) {:.0%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize))
 
         # TODO in future look at disk space and keep going
