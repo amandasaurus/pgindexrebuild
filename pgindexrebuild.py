@@ -166,7 +166,8 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    logger.info("used:   {} ({:,}) wasted: {} ({:,}) {:.0%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted) / float(total_used)))
+    percent_wasted = "" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
+    logger.info("used:   {} ({:,}) wasted: {} ({:,}) {}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, percent_wasted))
 
     total_savings = 0.0
 
