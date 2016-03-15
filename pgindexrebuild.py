@@ -169,7 +169,7 @@ def main():
     percent_wasted = "" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
     logger.info("used:   {} ({:,}) wasted: {} ({:,}) {}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, percent_wasted))
 
-    total_savings = 0.0
+    total_savings = 0
 
     while True:
 
