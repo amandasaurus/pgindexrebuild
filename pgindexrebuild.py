@@ -10,6 +10,10 @@ import psycopg2.extras
 import math
 import sys
 from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 def make_indexdef_concurrent(indexdef):
@@ -139,6 +143,11 @@ def main():
     parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
     args = parser.parse_args()
 
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+    logger.addHandler(handler)
+
     connect_args = {}
     if args.database is not None:
         connect_args['database'] = args.database
@@ -157,32 +166,31 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    print "used:   {} ({:,})\nwasted: {} ({:,}) {:.0%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted) / float(total_used))
+    logger.info("used:   {} ({:,}) wasted: {} ({:,}) {:.0%}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, float(total_wasted) / float(total_used)))
 
     total_savings = 0.0
 
     while True:
-        print "\n\nStart of loop\n"
 
         for obj in objs:
             if obj['wasted'] == 0:
-                print "Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj)
+                logger.info("Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj))
                 continue
             if ' UNIQUE ' in obj['indexdef'].upper():
                 # FIXME Better unique index detection
                 # FIXME Don't skip unique indexes, instead figure out how to
                 # recreate the unique contraint, like we do with PRIMARY KEYS
-                print "Skipping Index {} size {} ({:,}) wasted {} ({:,}) because it has a unique constrainst".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'])
+                logger.info("Skipping Index {} size {} ({:,}) wasted {} ({:,}) because it has a unique constrainst".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted']))
                 continue
 
             oldsize = index_size(cursor, obj['name'])
-            print "Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted']) / obj['size'])
+            logger.info("Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted']) / obj['size']))
 
             if not args.dry_run:
                 old_index_name = "{t}_old".format(t=obj['name'])
 
                 if does_index_exist(cursor, old_index_name):
-                    print "The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:\n    DROP INDEX {old};\nProcessing will continue with the rest of the indexes".format(old=old_index_name)
+                    logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
                     continue
 
                 cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
@@ -197,12 +205,12 @@ def main():
                 newsize = index_size(cursor, obj['name'])
                 delta_size = newsize - oldsize
                 total_savings += delta_size
-                print "Saved {} ({:,}) {:.0%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize)
+                logger.info("Saved {} ({:,}) {:.0%}".format(size_pretty(delta_size), delta_size, delta_size/oldsize))
 
         # TODO in future look at disk space and keep going
         break
 
-    print "Finish. Saved {} ({:,}) in total".format(size_pretty(total_savings), total_savings)
+    logger.info("Finish. Saved {} ({:,}) in total".format(size_pretty(total_savings), total_savings))
 
 
 if __name__ == '__main__':
