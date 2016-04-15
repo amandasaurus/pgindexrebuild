@@ -141,6 +141,7 @@ def main():
     parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
     parser.add_argument('-U', '--user', type=str, required=False, help="PostgreSQL database user")
     parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
+    parser.add_argument('--always-drop-first', '--super-slim-mode', action="store_true", help="Rather than keep the old index around, this drops the index first, and then rebuilds a new one. THIS WILL DEGRADE DATABASE PERFORMANCE!")
     args = parser.parse_args()
 
     handler = logging.StreamHandler(sys.stdout)
@@ -169,6 +170,12 @@ def main():
     percent_wasted = "" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
     logger.info("used:   {} ({:,}) wasted: {} ({:,}) {}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, percent_wasted))
 
+    always_drop_first = args.always_drop_first
+    if always_drop_first:
+        logger.info("Running in super slim mode. Indexes will be dropped and database performance will degrade")
+    else:
+        logger.info("Running in normal mode. Old, bloated index will be kept around.")
+
     total_savings = 0
 
     while True:
@@ -194,14 +201,31 @@ def main():
                     logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
                     continue
 
-                cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
+                if not always_drop_first:
+                    # Move old index out of the way
+                    logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
+                    cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
+                else:
+                    # Super slim mode, delete it
+                    logger.debug("Dropped index {t}".format(t=obj['name']))
+                    cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+
+                # (Re-)Create the new index
+                logger.debug("Index creation SQL: {}".format(obj['indexdef']))
                 cursor.execute(obj['indexdef'])
+
+                # Analyze the new index.
                 cursor.execute("ANALYSE {t};".format(t=obj['name']))
 
                 if obj['primary']:
-                    cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old, ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
+                    if not always_drop_first:
+                        cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old;".format(t=obj['name'], table=obj['table']))
 
-                cursor.execute("DROP INDEX {old};".format(old=old_index_name))
+                    cursor.execute("ALTER TABLE {table} ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
+
+                if not always_drop_first:
+                    logger.debug("Dropped index {old}".format(old=old_index_name))
+                    cursor.execute("DROP INDEX {old};".format(old=old_index_name))
 
                 newsize = index_size(cursor, obj['name'])
                 savings = oldsize - newsize 
