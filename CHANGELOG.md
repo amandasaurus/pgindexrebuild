@@ -1,3 +1,15 @@
+<a name="v0.6.0"></a>
+## v0.6.0 (2016-04-15)
+
+
+#### Bug Fixes
+
+*   Show bytes as whole numbers not floats ([4dfae2f6](4dfae2f6))
+*   Properly count the amount saved. ([6feafb4a](6feafb4a))
+*   Continue to work with zero wastage and usage ([18aa6931](18aa6931))
+
+
+
 <a name="v0.5.0"></a>
 ## v0.5.0 (2016-03-15)
 
