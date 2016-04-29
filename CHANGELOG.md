@@ -1,3 +1,13 @@
+<a name="v0.7.0"></a>
+## v0.7.0 (2016-04-29)
+
+
+#### Features
+
+*   Add --super-slim-mode which will drop the index ([ffc8e273](ffc8e273))
+
+
+
 <a name="v0.6.0"></a>
 ## v0.6.0 (2016-04-15)
 
