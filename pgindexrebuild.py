@@ -142,6 +142,7 @@ def main():
     parser.add_argument('-U', '--user', type=str, required=False, help="PostgreSQL database user")
     parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
     parser.add_argument('--always-drop-first', '--super-slim-mode', action="store_true", help="Rather than keep the old index around, this drops the index first, and then rebuilds a new one. THIS WILL DEGRADE DATABASE PERFORMANCE!")
+    parser.add_argument('--tablespace', type=str, required=False, help="Tablespace to use to create the new indexes")
     args = parser.parse_args()
 
     handler = logging.StreamHandler(sys.stdout)
