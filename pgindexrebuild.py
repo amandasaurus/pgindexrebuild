@@ -55,6 +55,9 @@ def size_pretty(b):
         # B
         return "{}B".format(b)
 
+def format_size(b):
+    b = int(b)
+    return "{} ({:,} bytes)".format(humanfriendly.format_size(b), b)
 
 def indexsizes(cursor):
     """Return the sizes of all the indexes."""
@@ -176,14 +179,21 @@ def main():
     else:
         logger.info("Running in normal mode. Old, bloated index will be kept around.")
 
+    min_bloat = args.min_bloat
+    logger.info("Ignoring all tables with a bloat less than {}".format(format_size(min_bloat)))
+
     total_savings = 0
 
     while True:
 
         for obj in objs:
             if obj['wasted'] == 0:
-                logger.info("Skipping Index {name:>50} size {size:>15,} wasted {wasted:>15,}".format(**obj))
+                logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
                 continue
+            if obj['wasted'] < min_bloat:
+                logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
+                continue
+
             if ' UNIQUE ' in obj['indexdef'].upper():
                 # FIXME Better unique index detection
                 # FIXME Don't skip unique indexes, instead figure out how to
