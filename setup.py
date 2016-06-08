@@ -9,6 +9,7 @@ setup(
     platforms=['any',],
     install_requires=[
         'psycopg2',
+        "humanfriendly",
         ],
     entry_points={
         'console_scripts': [

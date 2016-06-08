@@ -11,6 +11,7 @@ import math
 import sys
 from decimal import Decimal
 import logging
+import humanfriendly
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -39,21 +40,6 @@ def does_index_exist(cursor, iname):
     result = cursor.fetchone()
     return result == [1]
 
-
-
-def size_pretty(b):
-    if abs(b) >= 1024 * 1024 * 1024:
-        # GB
-        return "{:.1f}GiB".format(b / (1024 * 1024 * 1024))
-    elif abs(b) >= 1024 * 1024:
-        # MB
-        return "{:.1f}MiB".format(b / (1024 * 1024))
-    elif abs(b) >= 1024:
-        # KB
-        return "{:.1f}KiB".format(b / (1024))
-    else:
-        # B
-        return "{}B".format(b)
 
 def format_size(b):
     b = int(b)
@@ -144,8 +130,12 @@ def main():
     parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
     parser.add_argument('-U', '--user', type=str, required=False, help="PostgreSQL database user")
     parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
+
+    parser.add_argument('--min-bloat', type=humanfriendly.parse_size, required=False, default=8192, help="Don't reindex indexes with less than this much bloat (default: 8KB)")
+
     parser.add_argument('--always-drop-first', '--super-slim-mode', action="store_true", help="Rather than keep the old index around, this drops the index first, and then rebuilds a new one. THIS WILL DEGRADE DATABASE PERFORMANCE!")
     args = parser.parse_args()
+
 
     handler = logging.StreamHandler(sys.stdout)
     handler.setLevel(logging.DEBUG)
@@ -171,7 +161,7 @@ def main():
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
     percent_wasted = "" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
-    logger.info("used:   {} ({:,}) wasted: {} ({:,}) {}".format(size_pretty(total_used), total_used, size_pretty(total_wasted), total_wasted, percent_wasted))
+    logger.info("used: {} wasted: {} {}".format(format_size(total_used), format_size(total_wasted), percent_wasted))
 
     always_drop_first = args.always_drop_first
     if always_drop_first:
@@ -198,11 +188,11 @@ def main():
                 # FIXME Better unique index detection
                 # FIXME Don't skip unique indexes, instead figure out how to
                 # recreate the unique contraint, like we do with PRIMARY KEYS
-                logger.info("Skipping Index {} size {} ({:,}) wasted {} ({:,}) because it has a unique constrainst".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted']))
+                logger.info("Skipping Index {} size {} wasted {} because it has a unique constrainst".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
                 continue
 
             oldsize = index_size(cursor, obj['name'])
-            logger.info("Reindexing {} size {} ({:,}) wasted {} ({:,}) {:.0%}".format(obj['name'], size_pretty(obj['size']), obj['size'], size_pretty(obj['wasted']), obj['wasted'], float(obj['wasted']) / obj['size']))
+            logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
 
             if not args.dry_run:
                 old_index_name = "{t}_old".format(t=obj['name'])
@@ -240,12 +230,12 @@ def main():
                 newsize = index_size(cursor, obj['name'])
                 savings = oldsize - newsize 
                 total_savings += savings
-                logger.info("Saved {} ({:,}) {:.0%} - Total savings so far: {} ({,})".format(size_pretty(savings), savings, savings/oldsize, size_pretty(total_savings), total_savings))
+                logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
 
         # TODO in future look at disk space and keep going
         break
 
-    logger.info("Finish. Saved {} ({:,}) in total".format(size_pretty(total_savings), total_savings))
+    logger.info("Finish. Saved {} in total".format(format_size(total_savings)))
 
 
 if __name__ == '__main__':
