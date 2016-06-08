@@ -230,7 +230,7 @@ def main():
                 newsize = index_size(cursor, obj['name'])
                 savings = oldsize - newsize 
                 total_savings += savings
-                logger.info("Saved {} ({:,}) {:.0%}".format(size_pretty(savings), savings, savings/oldsize))
+                logger.info("Saved {} ({:,}) {:.0%} - Total savings so far: {} ({,})".format(size_pretty(savings), savings, savings/oldsize, size_pretty(total_savings), total_savings))
 
         # TODO in future look at disk space and keep going
         break
