@@ -161,13 +161,16 @@ def main():
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
     percent_wasted = "" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
-    logger.info("used: {} wasted: {} {}".format(format_size(total_used), format_size(total_wasted), percent_wasted))
+    logger.info("Database {} - Used space: {} Wasted space: {} {} wasted space".format(args.database, format_size(total_used), format_size(total_wasted), percent_wasted))
 
     always_drop_first = args.always_drop_first
     if always_drop_first:
         logger.info("Running in super slim mode. Indexes will be dropped and database performance will degrade")
     else:
         logger.info("Running in normal mode. Old, bloated index will be kept around.")
+
+    if args.dry_run:
+        logger.info("Running in dry-run mode, no changes will be made")
 
     min_bloat = args.min_bloat
     logger.info("Ignoring all tables with a bloat less than {}".format(format_size(min_bloat)))
@@ -235,7 +238,10 @@ def main():
         # TODO in future look at disk space and keep going
         break
 
-    logger.info("Finish. Saved {} in total".format(format_size(total_savings)))
+    if args.dry_run:
+        logger.info("Finish.")
+    else:
+        logger.info("Finish. Saved {} in total".format(format_size(total_savings)))
 
 
 if __name__ == '__main__':
