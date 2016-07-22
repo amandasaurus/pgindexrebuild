@@ -183,7 +183,7 @@ def main():
             if obj['wasted'] == 0:
                 logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
                 continue
-            if obj['wasted'] < min_bloat:
+            if obj['wasted'] <= min_bloat:
                 logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
                 continue
 
