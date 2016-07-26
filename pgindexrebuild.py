@@ -218,7 +218,20 @@ def main():
 
                 # (Re-)Create the new index
                 logger.debug("Index creation SQL: {}".format(obj['indexdef']))
-                cursor.execute(obj['indexdef'])
+                try:
+                    cursor.execute(obj['indexdef'])
+                except psycopg2.OperationalError as e:
+                    if e.pgerror.startswith('ERROR:  could not extend file') and e.pgerror.endswith("No space left on device\nHINT:  Check free disk space.\n"):
+                        # Disk is full
+                        logger.error("Disk is full! Cannot proceed. Attempting to roll back")
+                        # drop newly created, and invalid index
+                        logger.debug("Deleting the invalid index {}".format(obj['name']))
+                        cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+                        logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
+                        cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
+
+                        # Break out, we can't do anymore
+                        break
 
                 # Analyze the new index.
                 cursor.execute("ANALYSE {t};".format(t=obj['name']))
