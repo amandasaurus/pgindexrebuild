@@ -43,7 +43,10 @@ def does_index_exist(cursor, iname):
 
 def format_size(b):
     b = int(b)
-    return "{} ({:,} bytes)".format(humanfriendly.format_size(b), b)
+    if b == 0:
+        return "0 bytes"
+    else:
+        return "{} ({:,} bytes)".format(humanfriendly.format_size(b), b)
 
 def indexsizes(cursor):
     """Return the sizes of all the indexes."""
@@ -160,7 +163,7 @@ def main():
 
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
-    percent_wasted = "" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
+    percent_wasted = "N/A" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
     logger.info("Database {} - Used space: {} Wasted space: {} {} wasted space".format(args.database, format_size(total_used), format_size(total_wasted), percent_wasted))
 
     always_drop_first = args.always_drop_first
