@@ -1,3 +1,21 @@
+<a name="v0.8.0"></a>
+## v0.8.0 (2016-07-27)
+
+
+#### Bug Fixes
+
+*   Attempt to work better if the disk fills up ([78ed8877](78ed8877))
+*   Better formatting/printing when zero bytes ([7aec6855](7aec6855))
+*   Don't index if <= min bloat ([54176ebd](54176ebd))
+
+#### Features
+
+*   Add --min-bloat option to skip tables with small bloat ([f3182715](f3182715))
+*   Display running total of saved space ([4145d7b2](4145d7b2))
+* **output:**  Minor improvements to logging output, esp w/ --dry-run ([e0992237](e0992237))
+
+
+
 <a name="v0.7.0"></a>
 ## v0.7.0 (2016-04-29)
 
