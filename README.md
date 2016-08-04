@@ -1,5 +1,8 @@
 # pgindexrebuild
 
+[![PyPI](https://img.shields.io/pypi/v/pgindexrebuild.svg?maxAge=2592000)]()
+[![PyPI](https://img.shields.io/pypi/l/pgindexrebuild.svg?maxAge=2592000)]()
+
 Reindexes an index and solves index bloat by creating anew a new index with the
 same definition and only afterwards removing the old one. All indexes are
 created CONCURRENTLY to minimize disruption to the database.
