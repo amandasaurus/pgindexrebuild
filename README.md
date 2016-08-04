@@ -18,7 +18,7 @@ This tool can take a long time to run.
 
 ## Installation
 
-    pip install .
+    pip install pgindexrebuild
 
 ## Usage
 
