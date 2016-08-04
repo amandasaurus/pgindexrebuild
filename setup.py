@@ -7,6 +7,7 @@ setup(
     author_email="rory@geofabrik.de",
     py_modules=['pgindexrebuild'],
     platforms=['any',],
+    license = 'GPLv3+',
     install_requires=[
         'psycopg2',
         "humanfriendly",
@@ -19,5 +20,10 @@ setup(
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
+        'Intended Audience :: System Administrators',
+        'Operating System :: Unix'
+        'Topic :: Database :: Database Engines/Servers',
+        'Topic :: System :: Systems Administration',
+        'Programming Language :: Python :: 2',
     ],
 )

@@ -133,18 +133,18 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--database', type=str, required=True, help="PostgreSQL database name")
     parser.add_argument('-U', '--user', type=str, required=False, help="PostgreSQL database user")
-    parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run")
+    parser.add_argument('-n', '--dry-run', action="store_true", help="Dry run, don't do any processing")
 
     parser.add_argument('--min-bloat', type=humanfriendly.parse_size, required=False, default=8192, help="Don't reindex indexes with less than this much bloat (default: 8KB)")
 
-    parser.add_argument('--always-drop-first', '--super-slim-mode', action="store_true", help="Rather than keep the old index around, this drops the index first, and then rebuilds a new one. THIS WILL DEGRADE DATABASE PERFORMANCE!")
+    parser.add_argument('--always-drop-first', '--super-slim-mode', action="store_true", help="Rather than keep the old index around, this drops the index first, and then rebuilds a new one. This is useful if the disk is too full for the intermediate index. THIS WILL DEGRADE DATABASE PERFORMANCE!")
 
     parser.add_argument('--log-syslog', action="store_true", dest="log_syslog", help="Log to syslog (default)", default=True)
     parser.add_argument('--no-log-syslog', action="store_false", dest="log_syslog", help="Don't log to syslog")
 
-    parser.add_argument('--log-stdout', action="store_true", dest="log_stdout", help="Log to stdou (default)", default=True)
+    parser.add_argument('--log-stdout', action="store_true", dest="log_stdout", help="Log to stdout (default)", default=True)
     parser.add_argument('--no-log-stdout', action="store_false", dest="log_stdout", help="Don't log to stdout")
-    parser.add_argument('-q', "--quiet", action="store_false", dest="log_stdout", help="Don't log to stdout, only log to syslog")
+    parser.add_argument('-q', "--quiet", action="store_false", dest="log_stdout", help="Same as --no-log-stdout. Won't print to terminal.")
 
     args = parser.parse_args()
 
