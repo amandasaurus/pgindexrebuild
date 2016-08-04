@@ -1,3 +1,15 @@
+<a name="v0.9.0"></a>
+## v0.9.0 (2016-08-04)
+
+
+#### Features
+
+* **output:**
+  *  Allow logging to syslog and turn off logging to stdout ([19c55faf](19c55faf))
+  *  Some slightly logging wording improvements ([205a4b18](205a4b18))
+
+
+
 <a name="v0.8.0"></a>
 ## v0.8.0 (2016-07-27)
 
