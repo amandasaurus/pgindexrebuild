@@ -10,8 +10,9 @@ import psycopg2.extras
 import math
 import sys
 from decimal import Decimal
-import logging
+import logging, logging.handlers
 import humanfriendly
+import os
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -137,13 +138,31 @@ def main():
     parser.add_argument('--min-bloat', type=humanfriendly.parse_size, required=False, default=8192, help="Don't reindex indexes with less than this much bloat (default: 8KB)")
 
     parser.add_argument('--always-drop-first', '--super-slim-mode', action="store_true", help="Rather than keep the old index around, this drops the index first, and then rebuilds a new one. THIS WILL DEGRADE DATABASE PERFORMANCE!")
+
+    parser.add_argument('--log-syslog', action="store_true", dest="log_syslog", help="Log to syslog (default)", default=True)
+    parser.add_argument('--no-log-syslog', action="store_false", dest="log_syslog", help="Don't log to syslog")
+
+    parser.add_argument('--log-stdout', action="store_true", dest="log_stdout", help="Log to stdou (default)", default=True)
+    parser.add_argument('--no-log-stdout', action="store_false", dest="log_stdout", help="Don't log to stdout")
+    parser.add_argument('-q', "--quiet", action="store_false", dest="log_stdout", help="Don't log to stdout, only log to syslog")
+
     args = parser.parse_args()
 
+    if args.log_stdout:
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
+        logger.addHandler(handler)
 
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setLevel(logging.DEBUG)
-    handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s: %(message)s'))
-    logger.addHandler(handler)
+    if args.log_syslog:
+        handler = logging.handlers.SysLogHandler("/dev/log")
+        handler.setLevel(logging.DEBUG)
+        # Unix convention of the PID & process at the start. syslog already has datetime so don't need to include that
+        handler.setFormatter(logging.Formatter('pgindexrebuild[{pid}]: %(levelname)s: %(message)s'.format(pid=os.getpid())))
+        logger.addHandler(handler)
+
+    # Ensure we always have at least one handler. Otherwise with --no-log-syslog --no-log-stdout there'd be an error
+    logger.addHandler(logging.NullHandler())
 
     connect_args = {}
     if args.database is not None:
