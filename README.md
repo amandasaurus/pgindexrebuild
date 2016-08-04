@@ -30,5 +30,5 @@ Copyright 2016 Rory McCann <rory@technomancy.org> - Licenced under the GNU GPL v
 
 ## See also
 
- * (pgtoolkit)[https://github.com/grayhemp/pgtoolkit] which does something
+ * [pgtoolkit](https://github.com/grayhemp/pgtoolkit) which does something
    similar for table bloat, and can also run on a production database
