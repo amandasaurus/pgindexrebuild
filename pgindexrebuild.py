@@ -164,7 +164,7 @@ def main():
     total_used = sum(Decimal(x['size']) for x in objs)
     total_wasted = sum(Decimal(x['wasted']) for x in objs)
     percent_wasted = "N/A" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
-    logger.info("Database {} - Used space: {} Wasted space: {} {} wasted space".format(args.database, format_size(total_used), format_size(total_wasted), percent_wasted))
+    logger.info("Starting pgindexrebuild: Database {} - Used space: {} Wasted space: {} {} wasted space".format(args.database, format_size(total_used), format_size(total_wasted), percent_wasted))
 
     always_drop_first = args.always_drop_first
     if always_drop_first:
@@ -255,7 +255,7 @@ def main():
         break
 
     if args.dry_run:
-        logger.info("Finish.")
+        logger.info("Finish. Ran in dry-run so space saved")
     else:
         logger.info("Finish. Saved {} in total".format(format_size(total_savings)))
 
