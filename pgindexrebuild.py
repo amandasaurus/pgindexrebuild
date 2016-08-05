@@ -199,79 +199,75 @@ def main():
 
     total_savings = 0
 
-    while True:
+    for obj in objs:
+        if obj['wasted'] == 0:
+            logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
+            continue
+        if obj['wasted'] <= min_bloat:
+            logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
+            continue
 
-        for obj in objs:
-            if obj['wasted'] == 0:
-                logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
+        if ' UNIQUE ' in obj['indexdef'].upper():
+            # FIXME Better unique index detection
+            # FIXME Don't skip unique indexes, instead figure out how to
+            # recreate the unique contraint, like we do with PRIMARY KEYS
+            logger.info("Skipping Index {} size {} wasted {} because it has a unique constrainst".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
+            continue
+
+        oldsize = index_size(cursor, obj['name'])
+        logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
+
+        if not args.dry_run:
+            old_index_name = "{t}_old".format(t=obj['name'])
+
+            if does_index_exist(cursor, old_index_name):
+                logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
                 continue
-            if obj['wasted'] <= min_bloat:
-                logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
-                continue
 
-            if ' UNIQUE ' in obj['indexdef'].upper():
-                # FIXME Better unique index detection
-                # FIXME Don't skip unique indexes, instead figure out how to
-                # recreate the unique contraint, like we do with PRIMARY KEYS
-                logger.info("Skipping Index {} size {} wasted {} because it has a unique constrainst".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
-                continue
+            if not always_drop_first:
+                # Move old index out of the way
+                logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
+                cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
+            else:
+                # Super slim mode, delete it
+                logger.debug("Dropped index {t}".format(t=obj['name']))
+                cursor.execute("DROP INDEX {t};".format(t=obj['name']))
 
-            oldsize = index_size(cursor, obj['name'])
-            logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
-
-            if not args.dry_run:
-                old_index_name = "{t}_old".format(t=obj['name'])
-
-                if does_index_exist(cursor, old_index_name):
-                    logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
-                    continue
-
-                if not always_drop_first:
-                    # Move old index out of the way
-                    logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
-                    cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
-                else:
-                    # Super slim mode, delete it
-                    logger.debug("Dropped index {t}".format(t=obj['name']))
+            # (Re-)Create the new index
+            logger.debug("Index creation SQL: {}".format(obj['indexdef']))
+            try:
+                cursor.execute(obj['indexdef'])
+            except psycopg2.OperationalError as e:
+                if e.pgerror.startswith('ERROR:  could not extend file') and e.pgerror.endswith("No space left on device\nHINT:  Check free disk space.\n"):
+                    # Disk is full
+                    logger.error("Disk is full! Cannot proceed. Attempting to roll back")
+                    # drop newly created, and invalid index
+                    logger.debug("Deleting the invalid index {}".format(obj['name']))
                     cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+                    logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
+                    cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
 
-                # (Re-)Create the new index
-                logger.debug("Index creation SQL: {}".format(obj['indexdef']))
-                try:
-                    cursor.execute(obj['indexdef'])
-                except psycopg2.OperationalError as e:
-                    if e.pgerror.startswith('ERROR:  could not extend file') and e.pgerror.endswith("No space left on device\nHINT:  Check free disk space.\n"):
-                        # Disk is full
-                        logger.error("Disk is full! Cannot proceed. Attempting to roll back")
-                        # drop newly created, and invalid index
-                        logger.debug("Deleting the invalid index {}".format(obj['name']))
-                        cursor.execute("DROP INDEX {t};".format(t=obj['name']))
-                        logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
-                        cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
+                    # Break out, we can't do anymore
+                    break
 
-                        # Break out, we can't do anymore
-                        break
+            # Analyze the new index.
+            cursor.execute("ANALYSE {t};".format(t=obj['name']))
 
-                # Analyze the new index.
-                cursor.execute("ANALYSE {t};".format(t=obj['name']))
-
-                if obj['primary']:
-                    if not always_drop_first:
-                        cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old;".format(t=obj['name'], table=obj['table']))
-
-                    cursor.execute("ALTER TABLE {table} ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
-
+            if obj['primary']:
                 if not always_drop_first:
-                    logger.debug("Dropped index {old}".format(old=old_index_name))
-                    cursor.execute("DROP INDEX {old};".format(old=old_index_name))
+                    cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old;".format(t=obj['name'], table=obj['table']))
 
-                newsize = index_size(cursor, obj['name'])
-                savings = oldsize - newsize 
-                total_savings += savings
-                logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
+                cursor.execute("ALTER TABLE {table} ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
 
-        # TODO in future look at disk space and keep going
-        break
+            if not always_drop_first:
+                logger.debug("Dropped index {old}".format(old=old_index_name))
+                cursor.execute("DROP INDEX {old};".format(old=old_index_name))
+
+            newsize = index_size(cursor, obj['name'])
+            savings = oldsize - newsize 
+            total_savings += savings
+            logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
+
 
     if args.dry_run:
         logger.info("Finish. Ran in dry-run so space saved")
