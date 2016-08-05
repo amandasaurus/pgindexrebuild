@@ -270,7 +270,7 @@ def main():
 
 
     if args.dry_run:
-        logger.info("Finish. Ran in dry-run so space saved")
+        logger.info("Finish. Ran in dry-run no space saved")
     else:
         logger.info("Finish. Saved {} in total".format(format_size(total_savings)))
 
