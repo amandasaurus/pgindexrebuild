@@ -255,7 +255,7 @@ def main():
                 # FIXME Better unique index detection
                 # FIXME Don't skip unique indexes, instead figure out how to
                 # recreate the unique contraint, like we do with PRIMARY KEYS
-                logger.info("Skipping Index {} size {} wasted {} because it has a unique constrainst".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
+                logger.info("Skipping Index {} size {} wasted {} because it has a unique constraint".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
                 continue
 
             oldsize = index_size(cursor, obj['name'])
