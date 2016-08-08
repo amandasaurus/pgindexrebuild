@@ -229,7 +229,7 @@ def main():
         objs = indexsizes(cursor)
 
         if len(objs) == 0:
-            logger.info("No indexes found for database {}. Do you have permission to read them?".format(database))
+            logger.info("No indexes found for database {}. Either you have no permission to read them, or there is no index bloat in this database.".format(database))
             continue
 
         total_used = sum(Decimal(x['size']) for x in objs)
