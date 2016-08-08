@@ -208,7 +208,12 @@ def main():
 
     for database in databases:
         connect_args['database'] = database
-        conn = psycopg2.connect(**connect_args)
+        try:
+            conn = psycopg2.connect(**connect_args)
+        except psycopg2.OperationalError as ex:
+            logger.error("Unable to connect to database {}. Error: {!r}".format(database, ex))
+            continue
+
         logger.info("Connected to database {}".format(database))
 
         # Need this transaction isolation level for CREATE INDEX CONCURRENTLY
