@@ -173,6 +173,7 @@ def main():
 
     logger.info("Starting pgindexrebuild")
 
+    conn = None
     databases = []
     if args.all_databases:
         # work on all database
@@ -186,6 +187,7 @@ def main():
         # TODO Find out sizes (like \l+) and sort by that. Work on smallest dbs first
         cursor.execute("SELECT datname from pg_database where datistemplate = false order by datname")
         databases = [row[0] for row in cursor.fetchall()]
+        conn.close()
         logger.info("Running on all databases: Found {} database: {}".format(len(databases), ", ".join(databases)))
     elif args.database is not None:
         logger.info("Only operating on one database: {}".format(args.database))
@@ -207,6 +209,8 @@ def main():
         logger.info("Running in dry-run mode, no changes will be made")
 
     for database in databases:
+        if conn:
+            conn.close()
         connect_args['database'] = database
         try:
             conn = psycopg2.connect(**connect_args)
@@ -313,6 +317,9 @@ def main():
         logger.info("Finish. Ran in dry-run so no space saved")
     else:
         logger.info("Finish. Saved {} in total".format(format_size(total_savings)))
+
+    if conn:
+        conn.close()
 
 
 if __name__ == '__main__':
