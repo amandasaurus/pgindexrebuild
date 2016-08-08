@@ -214,7 +214,7 @@ def main():
             logger.error("Unable to connect to database {}. Error: {!r}".format(database, ex))
             continue
 
-        logger.info("Connected to database {}".format(database))
+        logger.info("Connected to database {}{}".format(database, (" as user {}".format(args.user) if args.user else " as unspecified user")))
 
         # Need this transaction isolation level for CREATE INDEX CONCURRENTLY
         # cf. http://stackoverflow.com/questions/3413646/postgres-raises-a-active-sql-transaction-errcode-25001
