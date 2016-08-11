@@ -1,3 +1,23 @@
+<a name="v0.10.0"></a>
+## v0.10.0 (2016-08-11)
+
+
+#### Bug Fixes
+
+*   Better error handleing if cannot connect ([0b093063](0b093063))
+* **output:**
+  *  Typo fix ([21ce9300](21ce9300))
+  *  Better error message when there's no waste ([9a9b409e](9a9b409e))
+  *  Fix typo ([00b4448d](00b4448d))
+
+#### Features
+
+*   Close database connections when we're done with it ([41dd207a](41dd207a))
+*   Add a --all-database option to run on all DBs ([f8d326ef](f8d326ef))
+* **output:**  Log who we're connecting as ([7f51e2fd](7f51e2fd))
+
+
+
 <a name="v0.9.0"></a>
 ## v0.9.0 (2016-08-04)
 
