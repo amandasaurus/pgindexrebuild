@@ -1,3 +1,13 @@
+<a name="v0.11.0"></a>
+## v0.11.0 (2016-08-15)
+
+
+#### Features
+
+* **output:**  Print the currently installed version on startup ([98b1d339](98b1d339))
+
+
+
 <a name="v0.10.0"></a>
 ## v0.10.0 (2016-08-11)
 
