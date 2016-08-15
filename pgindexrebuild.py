@@ -17,6 +17,10 @@ import os
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+def version():
+    """Returns the version installed via pip"""
+    import pkg_resources
+    return pkg_resources.require("pgindexrebuild")[0].version
 
 def make_indexdef_concurrent(indexdef):
     """Turn an index creation statement into a concurrent index creationstatement."""
@@ -171,7 +175,7 @@ def main():
     if args.user is not None:
         connect_args['user'] = args.user
 
-    logger.info("Starting pgindexrebuild")
+    logger.info("Starting pgindexrebuild {}".format(version()))
 
     conn = None
     databases = []
