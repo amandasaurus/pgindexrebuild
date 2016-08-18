@@ -13,6 +13,7 @@ from decimal import Decimal
 import logging, logging.handlers
 import humanfriendly
 import os
+import fcntl
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -151,6 +152,8 @@ def main():
     parser.add_argument('--no-log-stdout', action="store_false", dest="log_stdout", help="Don't log to stdout")
     parser.add_argument('-q', "--quiet", action="store_false", dest="log_stdout", help="Same as --no-log-stdout. Won't print to terminal.")
 
+    parser.add_argument("--lock-file", required=False, metavar="PATH", help="Use a PATH as a lock file using flock/fncntl. If a lock cannot be acquired immediatly, programme halts without changing anything.")
+
     args = parser.parse_args()
 
     if args.log_stdout:
@@ -176,6 +179,30 @@ def main():
         connect_args['user'] = args.user
 
     logger.info("Starting pgindexrebuild {}".format(version()))
+
+    # Lock?
+    # We don't explicitly close the file handle, that'll be done automatically
+    # when the programme ends. Which will release the lock
+    lock_file = None
+    if args.lock_file:
+        try:
+            lock_file = open(args.lock_file, 'w')
+        except IOError as ex:
+            logger.error("Could not open lock file {}. Do you have permission? Cannot get lock. Exiting without doing anything.".format(args.lock_file))
+            return
+
+        try:
+            # Try to get a lock on the file
+            # LOCK_EX because we want an exclusive lock, so no-one else can get this
+            # LOCK_NB = non-blocking. If you cannot get a lock straight away,
+            # throw an error. Otherwise it will wait (block) until it can get a
+            # lock
+            fcntl.flock(lock_file, fcntl.LOCK_EX|fcntl.LOCK_NB)
+            logger.info("Acquired a lock on {}. Other instances of pgindexrebuild will not run.".format(args.lock_file))
+        except IOError:
+            # File is already locked!
+            logger.info("Another instance of pgindexrebuild is running! Could not get a lock on {}. Exiting.".format(args.lock_file))
+            return
 
     conn = None
     databases = []
