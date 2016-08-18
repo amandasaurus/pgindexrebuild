@@ -1,3 +1,13 @@
+<a name="v0.12.0"></a>
+## v0.12.0 (2016-08-18)
+
+
+#### Features
+
+* **locking:**  Add a locking feature to prevent overlapping runs ([569b0315](569b0315))
+
+
+
 <a name="v0.11.0"></a>
 ## v0.11.0 (2016-08-15)
 
