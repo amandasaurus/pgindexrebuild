@@ -14,6 +14,8 @@ import logging, logging.handlers
 import humanfriendly
 import os
 import fcntl
+from contextlib import contextmanager
+import time
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -133,6 +135,15 @@ def indexsizes(cursor):
 
     return objs
 
+@contextmanager
+def log_duration(task_desc):
+    start_time = time.time()
+    yield
+    duration_sec = time.time() - start_time
+    duration_string = humanfriendly.format_timespan(duration_sec)
+
+    logger.debug("Finished {}. Took {} ({:.2f} sec)".format(task_desc, duration_string, duration_sec))
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -239,109 +250,113 @@ def main():
     if args.dry_run:
         logger.info("Running in dry-run mode, no changes will be made")
 
-    for database in databases:
-        if conn:
-            conn.close()
-        connect_args['database'] = database
-        try:
-            conn = psycopg2.connect(**connect_args)
-        except psycopg2.OperationalError as ex:
-            logger.error("Unable to connect to database {}. Error: {!r}".format(database, ex))
-            continue
-
-        logger.info("Connected to database {}{}".format(database, (" as user {}".format(args.user) if args.user else " as unspecified user")))
-
-        # Need this transaction isolation level for CREATE INDEX CONCURRENTLY
-        # cf. http://stackoverflow.com/questions/3413646/postgres-raises-a-active-sql-transaction-errcode-25001
-        conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
-
-        cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-
-        objs = indexsizes(cursor)
-
-        if len(objs) == 0:
-            logger.info("No indexes found for database {}. Either you have no permission to read them, or there is no index bloat in this database.".format(database))
-            continue
-
-        total_used = sum(Decimal(x['size']) for x in objs)
-        total_wasted = sum(Decimal(x['wasted']) for x in objs)
-        percent_wasted = "N/A" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
-        logger.info("DB {}: Used space: {} Wasted space: {} {} wasted space".format(database, format_size(total_used), format_size(total_wasted), percent_wasted))
-
-
-        min_bloat = args.min_bloat
-        logger.info("Ignoring all tables with a bloat less than {}".format(format_size(min_bloat)))
-
-        total_savings_this_database = 0
-
-        for obj in objs:
-            if obj['wasted'] == 0:
-                logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
-                continue
-            if obj['wasted'] <= min_bloat:
-                logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
-                continue
-
-            if ' UNIQUE ' in obj['indexdef'].upper():
-                # FIXME Better unique index detection
-                # FIXME Don't skip unique indexes, instead figure out how to
-                # recreate the unique contraint, like we do with PRIMARY KEYS
-                logger.info("Skipping Index {} size {} wasted {} because it has a unique constraint".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
-                continue
-
-            oldsize = index_size(cursor, obj['name'])
-            logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
-
-            if not args.dry_run:
-                old_index_name = "{t}_old".format(t=obj['name'])
-
-                if does_index_exist(cursor, old_index_name):
-                    logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
+    with log_duration("processing all databases"):
+        for database in databases:
+            with log_duration("processing database {}".format(database)):
+                if conn:
+                    conn.close()
+                connect_args['database'] = database
+                try:
+                    conn = psycopg2.connect(**connect_args)
+                except psycopg2.OperationalError as ex:
+                    logger.error("Unable to connect to database {}. Error: {!r}".format(database, ex))
                     continue
 
-                if not always_drop_first:
-                    # Move old index out of the way
-                    logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
-                    cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
-                else:
-                    # Super slim mode, delete it
-                    logger.debug("Dropped index {t}".format(t=obj['name']))
-                    cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+                logger.info("Connected to database {}{}".format(database, (" as user {}".format(args.user) if args.user else " as unspecified user")))
 
-                # (Re-)Create the new index
-                logger.debug("Index creation SQL: {}".format(obj['indexdef']))
-                try:
-                    cursor.execute(obj['indexdef'])
-                except psycopg2.OperationalError as e:
-                    if e.pgerror.startswith('ERROR:  could not extend file') and e.pgerror.endswith("No space left on device\nHINT:  Check free disk space.\n"):
-                        # Disk is full
-                        logger.error("Disk is full! Cannot proceed. Attempting to roll back")
-                        # drop newly created, and invalid index
-                        logger.debug("Deleting the invalid index {}".format(obj['name']))
-                        cursor.execute("DROP INDEX {t};".format(t=obj['name']))
-                        logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
-                        cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
+                # Need this transaction isolation level for CREATE INDEX CONCURRENTLY
+                # cf. http://stackoverflow.com/questions/3413646/postgres-raises-a-active-sql-transaction-errcode-25001
+                conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
-                        # Break out, we can't do anymore
-                        break
+                cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
 
-                # Analyze the new index.
-                cursor.execute("ANALYSE {t};".format(t=obj['name']))
+                with log_duration("calculating index sizes"):
+                    objs = indexsizes(cursor)
 
-                if obj['primary']:
-                    if not always_drop_first:
-                        cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old;".format(t=obj['name'], table=obj['table']))
+                if len(objs) == 0:
+                    logger.info("No indexes found for database {}. Either you have no permission to read them, or there is no index bloat in this database.".format(database))
+                    continue
 
-                    cursor.execute("ALTER TABLE {table} ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
+                total_used = sum(Decimal(x['size']) for x in objs)
+                total_wasted = sum(Decimal(x['wasted']) for x in objs)
+                percent_wasted = "N/A" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
+                logger.info("DB {}: Used space: {} Wasted space: {} {} wasted space".format(database, format_size(total_used), format_size(total_wasted), percent_wasted))
 
-                if not always_drop_first:
-                    logger.debug("Dropped index {old}".format(old=old_index_name))
-                    cursor.execute("DROP INDEX {old};".format(old=old_index_name))
 
-                newsize = index_size(cursor, obj['name'])
-                savings = oldsize - newsize
-                total_savings += savings
-                logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
+                min_bloat = args.min_bloat
+                logger.info("Ignoring all tables with a bloat less than {}".format(format_size(min_bloat)))
+
+                total_savings_this_database = 0
+
+                for obj in objs:
+                    if obj['wasted'] == 0:
+                        logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
+                        continue
+                    if obj['wasted'] <= min_bloat:
+                        logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
+                        continue
+
+                    if ' UNIQUE ' in obj['indexdef'].upper():
+                        # FIXME Better unique index detection
+                        # FIXME Don't skip unique indexes, instead figure out how to
+                        # recreate the unique contraint, like we do with PRIMARY KEYS
+                        logger.info("Skipping Index {} size {} wasted {} because it has a unique constraint".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
+                        continue
+
+                    oldsize = index_size(cursor, obj['name'])
+                    logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
+
+                    if not args.dry_run:
+                        old_index_name = "{t}_old".format(t=obj['name'])
+
+                        if does_index_exist(cursor, old_index_name):
+                            logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
+                            continue
+
+                        if not always_drop_first:
+                            # Move old index out of the way
+                            logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
+                            cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
+                        else:
+                            # Super slim mode, delete it
+                            logger.debug("Dropped index {t}".format(t=obj['name']))
+                            cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+
+                        # (Re-)Create the new index
+                        logger.debug("Index creation SQL: {}".format(obj['indexdef']))
+                        try:
+                            with log_duration("recreating index"):
+                                cursor.execute(obj['indexdef'])
+                        except psycopg2.OperationalError as e:
+                            if e.pgerror.startswith('ERROR:  could not extend file') and e.pgerror.endswith("No space left on device\nHINT:  Check free disk space.\n"):
+                                # Disk is full
+                                logger.error("Disk is full! Cannot proceed. Attempting to roll back")
+                                # drop newly created, and invalid index
+                                logger.debug("Deleting the invalid index {}".format(obj['name']))
+                                cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+                                logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
+                                cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
+
+                                # Break out, we can't do anymore
+                                break
+
+                        # Analyze the new index.
+                        cursor.execute("ANALYSE {t};".format(t=obj['name']))
+
+                        if obj['primary']:
+                            if not always_drop_first:
+                                cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old;".format(t=obj['name'], table=obj['table']))
+
+                            cursor.execute("ALTER TABLE {table} ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
+
+                        if not always_drop_first:
+                            logger.debug("Dropped index {old}".format(old=old_index_name))
+                            cursor.execute("DROP INDEX {old};".format(old=old_index_name))
+
+                        newsize = index_size(cursor, obj['name'])
+                        savings = oldsize - newsize
+                        total_savings += savings
+                        logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
 
 
     if args.dry_run:
