@@ -147,6 +147,7 @@ def log_duration(task_desc):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--hostname', type=str, help="PostgreSQL hostname")
     parser.add_argument('-d', '--database', type=str, help="PostgreSQL database name")
     parser.add_argument('-a', '--all-databases', action="store_true", help="Run on all databases")
     parser.add_argument('-U', '--user', type=str, required=False, help="PostgreSQL database user")
@@ -184,6 +185,8 @@ def main():
     logger.addHandler(logging.NullHandler())
 
     connect_args = {}
+    if args.hostname is not None:
+        connect_args['host'] = args.hostname
     if args.database is not None:
         connect_args['database'] = args.database
     if args.user is not None:
