@@ -1,3 +1,14 @@
+<a name="v0.13.0"></a>
+## v0.13.0 (2016-09-05)
+
+
+#### Features
+
+*   Hostname support ([f5a111ce](f5a111ce))
+* **output:**  Log duration of some (possibly long running) steps ([75230393](75230393))
+
+
+
 <a name="v0.12.0"></a>
 ## v0.12.0 (2016-08-18)
 
