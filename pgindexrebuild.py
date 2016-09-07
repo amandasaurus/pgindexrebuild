@@ -20,6 +20,8 @@ import time
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
+MAX_INDEX_ATTEMPTS = 3
+
 def version():
     """Returns the version installed via pip"""
     import pkg_resources
@@ -48,6 +50,11 @@ def does_index_exist(cursor, iname):
     result = cursor.fetchone()
     return result == [1]
 
+def is_index_valid(cursor, iname):
+    """Returns True iff the index is valid. Don't call on non-existant index"""
+    cursor.execute("SELECT i.indisvalid FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n, pg_catalog.pg_index i WHERE i.indexrelid = c.oid AND c.relnamespace = n.oid and c.relname = %s;", (iname,))
+    result = cursor.fetchone()[0]
+    return result
 
 def format_size(b):
     b = int(b)
@@ -328,8 +335,36 @@ def main():
                         # (Re-)Create the new index
                         logger.debug("Index creation SQL: {}".format(obj['indexdef']))
                         try:
-                            with log_duration("recreating index"):
-                                cursor.execute(obj['indexdef'])
+
+                            index_attempt = 1
+                            successful_recreation = False
+                            while not successful_recreation and index_attempt <= MAX_INDEX_ATTEMPTS:
+
+                                with log_duration("recreating index"):
+                                    cursor.execute(obj['indexdef'])
+
+                                index_attempt += 1
+
+                                # check if the new index is valid
+                                new_index_is_valid = is_index_valid(cursor, obj['name'])
+                                if not new_index_is_valid:
+                                    logger.error("New index {} is not valid. Deleting and retrying. That was attempt {} of {}".format(obj['name'], index_attempt, MAX_INDEX_ATTEMPTS))
+                                    cursor.execute("DROP INDEX {}".format(obj['name']))
+                                    successful_recreation = False
+                                else:
+                                    # Index is valid, so break out
+                                    successful_recreation = True
+
+                            if not successful_recreation:
+                                # Could not recreate index successfully
+                                logger.error("Could not recreate {}. Attempted {} times. Ignoring this index".format(obj['name'], MAX_INDEX_ATTEMPTS))
+                                # Remame _old index back to new name
+                                logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
+                                cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
+
+                                # bailout
+                                continue
+
                         except psycopg2.OperationalError as e:
                             if e.pgerror.startswith('ERROR:  could not extend file') and e.pgerror.endswith("No space left on device\nHINT:  Check free disk space.\n"):
                                 # Disk is full
