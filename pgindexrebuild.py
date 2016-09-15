@@ -153,7 +153,8 @@ def log_duration(task_desc):
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(prog="pgindexrebuild")
+    parser.add_argument("-v", "--version", action="version", version="%(prog)s {}".format(version()))
     parser.add_argument('--hostname', type=str, help="PostgreSQL hostname")
     parser.add_argument('-d', '--database', type=str, help="PostgreSQL database name")
     parser.add_argument('-a', '--all-databases', action="store_true", help="Run on all databases")
