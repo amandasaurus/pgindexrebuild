@@ -356,6 +356,7 @@ def main():
                                     successful_recreation = False
                                 else:
                                     # Index is valid, so break out
+                                    logger.debug("New index {} is valid. That was attempt {} of {}".format(obj['name'], index_attempt, MAX_INDEX_ATTEMPTS))
                                     successful_recreation = True
 
                             # Could not recreate index successfully after MAX_INDEX_ATTEMPTS attempts
