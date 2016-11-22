@@ -20,7 +20,7 @@ import time
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-MAX_INDEX_ATTEMPTS = 3
+MAX_INDEX_ATTEMPTS = 10
 
 def version():
     """Returns the version installed via pip"""
