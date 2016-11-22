@@ -174,6 +174,7 @@ def main():
 
     parser.add_argument("--lock-file", required=False, metavar="PATH", help="Use a PATH as a lock file using flock/fncntl. If a lock cannot be acquired immediatly, programme halts without changing anything.")
 
+
     args = parser.parse_args()
 
     if args.log_stdout:
@@ -341,6 +342,7 @@ def main():
                             successful_recreation = False
                             while not successful_recreation and index_attempt <= MAX_INDEX_ATTEMPTS:
 
+                                # Create the new index
                                 with log_duration("recreating index"):
                                     cursor.execute(obj['indexdef'])
 
@@ -356,8 +358,8 @@ def main():
                                     # Index is valid, so break out
                                     successful_recreation = True
 
+                            # Could not recreate index successfully after MAX_INDEX_ATTEMPTS attempts
                             if not successful_recreation:
-                                # Could not recreate index successfully
                                 logger.error("Could not recreate {}. Attempted {} times. Ignoring this index".format(obj['name'], MAX_INDEX_ATTEMPTS))
                                 # Remame _old index back to new name
                                 logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
