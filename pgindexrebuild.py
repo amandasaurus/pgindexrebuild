@@ -201,6 +201,8 @@ def main():
     if args.user is not None:
         connect_args['user'] = args.user
 
+    connect_args['application_name'] = 'pgindexrebuild'
+
     logger.info("Starting pgindexrebuild {}".format(version()))
 
     # Lock?
