@@ -341,12 +341,12 @@ def main():
                             index_attempt = 1
                             successful_recreation = False
                             while not successful_recreation and index_attempt <= MAX_INDEX_ATTEMPTS:
+                                logger.debug("Starting attempt {} of {} for {}".format(index_attempt, MAX_INDEX_ATTEMPTS, obj['name']))
 
                                 # Create the new index
                                 with log_duration("recreating index"):
                                     cursor.execute(obj['indexdef'])
 
-                                index_attempt += 1
 
                                 # check if the new index is valid
                                 new_index_is_valid = is_index_valid(cursor, obj['name'])
@@ -358,6 +358,8 @@ def main():
                                     # Index is valid, so break out
                                     logger.debug("New index {} is valid. That was attempt {} of {}".format(obj['name'], index_attempt, MAX_INDEX_ATTEMPTS))
                                     successful_recreation = True
+
+                                index_attempt += 1
 
                             # Could not recreate index successfully after MAX_INDEX_ATTEMPTS attempts
                             if not successful_recreation:
