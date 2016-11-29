@@ -59,6 +59,26 @@ then create the new index. There will be no index during the index creation, so
 **this option will degrade your database performance**, use it only if you
 don't have the disk available to do a normal index rebuild.
 
+### Invalid Indexes
+
+When an index is created with `CONCURRENTLY` and something goes wrong, the
+index will be "invalid" and cannot be used. This new (useless) index will still
+use up disk space. After creating an index, this programme will check if the
+new index is valid, and if not, it will remove the invalid index and try to
+recreate it again. It will try up to 10 times before giving up, when it when
+then leave behind the bloated, but working, index.
+
+It's possible that there might be a bug in this programme and it will
+incorrectly think the new invalid index is OK, and remove the working, bloated
+index. This has happened to the developer a few times.
+
+If you pass the `--repair-invalid` argument, then it will also rebuild
+(concurrently) any invalid indexes it finds in your database. This option can
+be used as a way to repair any problems that this programme might have caused
+in a previous run.
+
+By default it will not rebuild any invalid indexes.
+
 ## Copyright
 
 Copyright © 2016 Rory McCann <rory@technomancy.org> - Licenced under the GNU GPL v3 or later

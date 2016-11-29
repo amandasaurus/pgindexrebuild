@@ -132,6 +132,7 @@ def indexsizes(cursor):
                 'def': row['indexdef'],
                 'wasted': row['wastedibytes'],
                 'indexdef': make_indexdef_concurrent(row['indexdef']),
+                'invalid_index': False,
             }
 
     objs = objs.values()
@@ -141,6 +142,11 @@ def indexsizes(cursor):
     objs = [o for o in objs if o['schemaname'] == 'public' and o['wasted'] > 0]
 
     return objs
+
+def calculate_invalid_indexes(cursor):
+    cursor.execute("SELECT c.relname as name, pg_get_indexdef(c.oid) as indexdef FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n, pg_catalog.pg_index i WHERE i.indexrelid = c.oid AND c.relnamespace = n.oid and i.indisvalid = False;")
+    results = list({'name': row['name'], 'indexdef': make_indexdef_concurrent(row['indexdef']), 'invalid_index': True} for row in cursor)
+    return results
 
 @contextmanager
 def log_duration(task_desc):
@@ -171,6 +177,9 @@ def main():
     parser.add_argument('--log-stdout', action="store_true", dest="log_stdout", help="Log to stdout (default)", default=True)
     parser.add_argument('--no-log-stdout', action="store_false", dest="log_stdout", help="Don't log to stdout")
     parser.add_argument('-q', "--quiet", action="store_false", dest="log_stdout", help="Same as --no-log-stdout. Won't print to terminal.")
+
+    parser.add_argument("--repair-invalid", action="store_true", default=False, dest="repair_invalid", help="Repair/rebuild invalid indexes")
+    parser.add_argument("--no-repair-invalid", action="store_false", default=False, dest="repair_invalid", help="Don't repair/rebuild invalid indexes (the default)")
 
     parser.add_argument("--lock-file", required=False, metavar="PATH", help="Use a PATH as a lock file using flock/fncntl. If a lock cannot be acquired immediatly, programme halts without changing anything.")
 
@@ -261,6 +270,11 @@ def main():
     else:
         logger.info("Running in normal mode. Old, bloated index will be kept around.")
 
+    if args.repair_invalid:
+        logger.info("Repairing invalid indexes")
+    else:
+        logger.info("Not repairing invalid indexes")
+
     if args.dry_run:
         logger.info("Running in dry-run mode, no changes will be made")
 
@@ -287,14 +301,22 @@ def main():
                 with log_duration("calculating index sizes"):
                     objs = indexsizes(cursor)
 
-                if len(objs) == 0:
-                    logger.info("No indexes found for database {}. Either you have no permission to read them, or there is no index bloat in this database.".format(database))
+                if args.repair_invalid:
+                    with log_duration("calculating invalid indexes"):
+                        invalid_indexes = calculate_invalid_indexes(cursor)
+                else:
+                    invalid_indexes = []
+
+
+                if len(objs) == 0 and len(invalid_indexes) == 0:
+                    logger.info("No bloated or invalid indexes found for database {}. Either you have no permission to read them, or there is no index bloat or invalid indexes in this database.".format(database))
                     continue
 
                 total_used = sum(Decimal(x['size']) for x in objs)
                 total_wasted = sum(Decimal(x['wasted']) for x in objs)
                 percent_wasted = "N/A" if total_used == 0 else "{:.0%}".format(float(total_wasted)/float(total_used))
                 logger.info("DB {}: Used space: {} Wasted space: {} {} wasted space".format(database, format_size(total_used), format_size(total_wasted), percent_wasted))
+                logger.info("DB {}: {} invalid index(es): {}".format(database, len(invalid_indexes), ", ".join(x['name'] for x in invalid_indexes)))
 
 
                 min_bloat = args.min_bloat
@@ -302,13 +324,15 @@ def main():
 
                 total_savings_this_database = 0
 
-                for obj in objs:
-                    if obj['wasted'] == 0:
-                        logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
-                        continue
-                    if obj['wasted'] <= min_bloat:
-                        logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
-                        continue
+                for obj in objs+invalid_indexes:
+                    if not obj['invalid_index']:
+                        # This is a bloated index
+                        if obj['wasted'] == 0:
+                            logger.info("Skipping Index {name} size {size} wasted {wasted}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted'])))
+                            continue
+                        if obj['wasted'] <= min_bloat:
+                            logger.info("Skipping Index {name} size {size} wasted {wasted} which is less than min bloat {min_bloat}".format(name=obj['name'], size=format_size(obj['size']), wasted=format_size(obj['wasted']), min_bloat=format_size(min_bloat)))
+                            continue
 
                     if ' UNIQUE ' in obj['indexdef'].upper():
                         # FIXME Better unique index detection
@@ -317,8 +341,11 @@ def main():
                         logger.info("Skipping Index {} size {} wasted {} because it has a unique constraint".format(obj['name'], format_size(obj['size']), format_size(obj['wasted'])))
                         continue
 
-                    oldsize = index_size(cursor, obj['name'])
-                    logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
+                    if obj['invalid_index']:
+                        logger.info("Reindexing invalid index {}".format(obj['name']))
+                    else:
+                        oldsize = index_size(cursor, obj['name'])
+                        logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
 
                     if not args.dry_run:
                         old_index_name = "{t}_old".format(t=obj['name'])
@@ -327,6 +354,11 @@ def main():
                             logger.info("The index {old} already exists. This can happen when a previous run of this has been interrupted. You can delete this old index with:  DROP INDEX {old};  Processing will continue with the rest of the indexes".format(old=old_index_name))
                             continue
 
+                        # TODO For invalid indexes, you could drop the old one
+                        # first, since it's invalid and unusable. However that
+                        # means if there's a problem later, you have lost the
+                        # information that something is wrong with your
+                        # database
                         if not always_drop_first:
                             # Move old index out of the way
                             logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
@@ -399,10 +431,11 @@ def main():
                             logger.debug("Dropped index {old}".format(old=old_index_name))
                             cursor.execute("DROP INDEX {old};".format(old=old_index_name))
 
-                        newsize = index_size(cursor, obj['name'])
-                        savings = oldsize - newsize
-                        total_savings += savings
-                        logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
+                        if not obj['invalid_index']:
+                            newsize = index_size(cursor, obj['name'])
+                            savings = oldsize - newsize
+                            total_savings += savings
+                            logger.info("Saved {} {:.0%} - Total savings so far: {}".format(format_size(savings), savings/oldsize, format_size(total_savings)))
 
 
     if args.dry_run:
