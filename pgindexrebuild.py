@@ -417,6 +417,9 @@ def main():
 
                                 # Break out, we can't do anymore
                                 break
+                            else:
+                                logger.error("Error occured: {!r}", e)
+                                raise
 
                         # Analyze the new index.
                         cursor.execute("ANALYSE {t};".format(t=obj['name']))
