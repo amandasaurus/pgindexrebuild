@@ -361,12 +361,12 @@ def main():
                         # database
                         if not always_drop_first:
                             # Move old index out of the way
-                            logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
                             cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
+                            logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
                         else:
                             # Super slim mode, delete it
-                            logger.debug("Dropped index {t}".format(t=obj['name']))
                             cursor.execute("DROP INDEX {t};".format(t=obj['name']))
+                            logger.debug("Dropped index {t}".format(t=obj['name']))
 
                         # (Re-)Create the new index
                         logger.debug("Index creation SQL: {}".format(obj['indexdef']))
