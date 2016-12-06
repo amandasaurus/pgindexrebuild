@@ -149,6 +149,22 @@ def calculate_invalid_indexes(cursor):
     return results
 
 @contextmanager
+def postgres_timeout(cursor, timeout_ms):
+    """During this context, the postgresql statement timeout will be timeout_ms."""
+    cursor.execute("SHOW statement_timeout;")
+    old_timeout = cursor.fetchone()[0]
+
+    cursor.execute("SET statement_timeout = %s;", (timeout_ms,))
+
+    yield
+
+    # TODO detect timeout
+
+    # reset timeout
+
+    cursor.execute("SET statement_timeout = %s;", (old_timeout,))
+
+@contextmanager
 def log_duration(task_desc):
     start_time = time.time()
     yield
@@ -361,7 +377,10 @@ def main():
                         # database
                         if not always_drop_first:
                             # Move old index out of the way
-                            cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
+                            # If it takes more than 10 minutes (600,000 ms), abort.
+                            # Sometimes this statement has been blocked for days.
+                            with postgres_timeout(cursor, 10 * 60 * 1000):
+                                cursor.execute("ALTER INDEX {t} RENAME TO {old};".format(t=obj['name'], old=old_index_name))
                             logger.debug("Renamed index {t} to {t}_old".format(t=obj['name']))
                         else:
                             # Super slim mode, delete it
