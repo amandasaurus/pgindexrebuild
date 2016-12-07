@@ -443,7 +443,7 @@ def main():
                         # Analyze the new index.
                         cursor.execute("ANALYSE {t};".format(t=obj['name']))
 
-                        if obj['primary']:
+                        if obj.get('primary', False):
                             if not always_drop_first:
                                 cursor.execute("ALTER TABLE {table} DROP CONSTRAINT {t}_old;".format(t=obj['name'], table=obj['table']))
 
