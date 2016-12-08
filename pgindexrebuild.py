@@ -437,7 +437,7 @@ def main():
                                 # Break out, we can't do anymore
                                 break
                             else:
-                                logger.error("Error occured: {!r}", e)
+                                logger.error("Error occured: {!r}".format(e))
                                 raise
 
                         # Analyze the new index.
