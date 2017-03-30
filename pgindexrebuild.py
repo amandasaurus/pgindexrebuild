@@ -199,6 +199,8 @@ def main():
 
     parser.add_argument("--lock-file", required=False, metavar="PATH", help="Use a PATH as a lock file using flock/fncntl. If a lock cannot be acquired immediatly, programme halts without changing anything.")
 
+    parser.add_argument("--exclude-index", required=False, metavar="[DB.]INDEXNAME", help="Do nothing to this index. Can be provided many times", action="append")
+
 
     args = parser.parse_args()
 
@@ -341,6 +343,10 @@ def main():
                 total_savings_this_database = 0
 
                 for obj in objs+invalid_indexes:
+                    if (obj['name'] in args.exclude_index) or (database+"."+obj['name'] in args.exclude_index):
+                        logger.info("Skipping index {} because it has been excluded".format(obj['name']))
+                        continue
+
                     if not obj['invalid_index']:
                         # This is a bloated index
                         if obj['wasted'] == 0:
