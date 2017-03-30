@@ -1,3 +1,28 @@
+<a name="0.14.0"></a>
+## 0.14.0 (2017-03-30)
+
+
+#### Bug Fixes
+
+*   Always clean up and remove old broken indexes in error ([910b2913](910b2913))
+*   When rebuilding an invalid, there'll be no 'primary' key ([50318b3b](50318b3b))
+*   Don't wait more than 10 min to rename the old index ([16295c0d](16295c0d))
+*   Try up to 10 times when making an invalid index ([b3b7c14b](b3b7c14b))
+* **logging:**  Log when there is an exception ([4325c778](4325c778))
+* **logs:**  Log that a thing is done, *after* you've done the thing ([1b776ce8](1b776ce8))
+* **reindex:**  Don't leave INVALID indexes around ([68a36161](68a36161))
+
+#### Features
+
+*   Repair invalid indexes ([47ef09fa](47ef09fa))
+*   Set application name, it appears in pg_stat_activity ([83d6de27](83d6de27))
+*   add -v/--version argument to print version ([b1ca933b](b1ca933b))
+* **logging:**
+  *  Log more for index validity ([37a4dff7](37a4dff7))
+  *  Log when index creation is successful ([9106badf](9106badf))
+
+
+
 <a name="v0.13.0"></a>
 ## v0.13.0 (2016-09-05)
 
