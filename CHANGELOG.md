@@ -1,3 +1,13 @@
+<a name="0.15.0"></a>
+## 0.15.0 (2017-04-07)
+
+
+#### Features
+
+*   Add --exclude-index option to skip some indexes ([0c54f6b4](0c54f6b4))
+
+
+
 <a name="0.14.0"></a>
 ## 0.14.0 (2017-03-30)
 
