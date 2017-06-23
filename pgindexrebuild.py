@@ -343,7 +343,7 @@ def main():
                 total_savings_this_database = 0
 
                 for obj in objs+invalid_indexes:
-                    if (obj['name'] in args.exclude_index) or (database+"."+obj['name'] in args.exclude_index):
+                    if args.exclude_index is not None and ( (obj['name'] in args.exclude_index) or (database+"."+obj['name'] in args.exclude_index) ):
                         logger.info("Skipping index {} because it has been excluded".format(obj['name']))
                         continue
 
