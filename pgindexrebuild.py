@@ -131,7 +131,7 @@ def indexsizes(cursor):
                 'primary': row['indisprimary'],
                 'def': row['indexdef'],
                 'wasted': row['wastedibytes'],
-                'indexdef': make_indexdef_concurrent(row['indexdef']),
+                'indexdef': row['indexdef'],
                 'invalid_index': False,
             }
 
@@ -145,7 +145,7 @@ def indexsizes(cursor):
 
 def calculate_invalid_indexes(cursor):
     cursor.execute("SELECT c.relname as name, pg_get_indexdef(c.oid) as indexdef FROM pg_catalog.pg_class c, pg_catalog.pg_namespace n, pg_catalog.pg_index i WHERE i.indexrelid = c.oid AND c.relnamespace = n.oid and i.indisvalid = False;")
-    results = list({'name': row['name'], 'indexdef': make_indexdef_concurrent(row['indexdef']), 'invalid_index': True} for row in cursor)
+    results = list({'name': row['name'], 'indexdef': row['indexdef'], 'invalid_index': True} for row in cursor)
     return results
 
 @contextmanager
@@ -200,6 +200,9 @@ def main():
     parser.add_argument("--lock-file", required=False, metavar="PATH", help="Use a PATH as a lock file using flock/fncntl. If a lock cannot be acquired immediatly, programme halts without changing anything.")
 
     parser.add_argument("--exclude-index", required=False, metavar="[DB.]INDEXNAME", help="Do nothing to this index. Can be provided many times", action="append")
+
+    parser.add_argument('--concurrent', action="store_true", dest="concurrent", help="Build indexes CONCURRENTLY (default)", default=True)
+    parser.add_argument('--no-concurrent', action="store_false", dest="concurrent", help="Don't building CONCURRENTLY")
 
 
     args = parser.parse_args()
@@ -402,9 +405,15 @@ def main():
                             while not successful_recreation and index_attempt <= MAX_INDEX_ATTEMPTS:
                                 logger.debug("Starting attempt {} of {} for {}".format(index_attempt, MAX_INDEX_ATTEMPTS, obj['name']))
 
+                                if args.concurrent:
+                                    index_creation_sql = make_indexdef_concurrent(obj['indexdef'])
+                                else:
+                                    index_creation_sql = obj['indexdef']
+
+
                                 # Create the new index
                                 with log_duration("recreating index"):
-                                    cursor.execute(obj['indexdef'])
+                                    cursor.execute(index_creation_sql)
 
 
                                 # check if the new index is valid
