@@ -45,6 +45,12 @@ def index_size(cursor, iname):
     return size
 
 
+def get_all_tablespaces(cursor):
+    cursor.execute("select spcname from pg_tablespace;")
+    result = [x[0] for x in cursor.fetchall()]
+    return result
+
+
 def does_index_exist(cursor, iname):
     cursor.execute("select 1 from pg_indexes where schemaname = 'public' and indexname = %s limit 1;", (iname,))
     result = cursor.fetchone()
@@ -204,6 +210,7 @@ def main():
     parser.add_argument('--concurrent', action="store_true", dest="concurrent", help="Build indexes CONCURRENTLY (default)", default=True)
     parser.add_argument('--no-concurrent', action="store_false", dest="concurrent", help="Don't building CONCURRENTLY")
 
+    parser.add_argument("--tablespaces", required=False, metavar="TABLESPACE,TABLESPACE,", help="Comma separated list of tablespaces to use. The first tablespace which exists will be used. Without this and the default pg_default will be used", default="pg_default");
 
     args = parser.parse_args()
 
@@ -299,6 +306,19 @@ def main():
     if args.dry_run:
         logger.info("Running in dry-run mode, no changes will be made")
 
+    connect_args['database'] = 'postgres'
+    conn = psycopg2.connect(**connect_args)
+    all_tablespaces = get_all_tablespaces(conn.cursor())
+    tablespaces = [possible_tablespace for possible_tablespace in args.tablespaces.split(",") if possible_tablespace in all_tablespaces]
+    if len(tablespaces) == 0:
+        logger.error("No valid tablespace usable")
+        return
+    tablespace = tablespaces[0]
+    if tablespace == 'pg_default':
+        logger.debug("Using default pg_default tablespace")
+    else:
+        logger.info("Using special tablespace {}".format(tablespace))
+
     with log_duration("processing all databases"):
         for database in databases:
             with log_duration("processing database {}".format(database)):
@@ -313,11 +333,19 @@ def main():
 
                 logger.info("Connected to database {}{}".format(database, (" as user {}".format(args.user) if args.user else " as unspecified user")))
 
+
                 # Need this transaction isolation level for CREATE INDEX CONCURRENTLY
                 # cf. http://stackoverflow.com/questions/3413646/postgres-raises-a-active-sql-transaction-errcode-25001
                 conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
 
                 cursor = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+                # what's the default tablespace for this database?
+                cursor.execute("select t.* from pg_database d join pg_tablespace t ON t.oid = d.dattablespace where datname = %s;", (database,))
+                database_tablespace = cursor.fetchone()[0]
+                logger.info("Default tablespace for database {} is {}".format(database, database_tablespace))
+
+                cursor.execute("SET default_tablespace = %s;", (tablespace,))
 
                 with log_duration("calculating index sizes"):
                     objs = indexsizes(cursor)
@@ -371,6 +399,11 @@ def main():
                     else:
                         oldsize = index_size(cursor, obj['name'])
                         logger.info("Reindexing {} size {} wasted {} {:.0%}".format(obj['name'], format_size(obj['size']), format_size(obj['wasted']), float(obj['wasted']) / obj['size']))
+
+                    # what's the tablespace for this index?
+                    cursor.execute("SELECT tablespace FROM pg_indexes WHERE indexname = %s;", (obj['name'],));
+                    index_tablespace = cursor.fetchone()[0] or database_tablespace
+                    logger.info("index {} is on tablespace {}".format(obj['name'], index_tablespace));
 
                     if not args.dry_run:
                         old_index_name = "{t}_old".format(t=obj['name'])
@@ -459,6 +492,14 @@ def main():
                             cursor.execute("ALTER TABLE {table} ADD CONSTRAINT {t} PRIMARY KEY USING INDEX {t};".format(t=obj['name'], table=obj['table']))
 
                         if not always_drop_first:
+
+                            if tablespace != index_tablespace:
+                                with log_duration("moving old index to the working tablespace {} from {}".format(tablespace, index_tablespace)):
+                                    cursor.execute("ALTER INDEX {old} SET TABLESPACE {t};".format(old=old_index_name, t=tablespace))
+
+                                with log_duration("moving new index to the proper tablespace ({}) from the working tablespace {}".format(index_tablespace, tablespace)):
+                                    cursor.execute("ALTER INDEX {new} SET TABLESPACE {t};".format(new=obj['name'], t=tablespace))
+
                             logger.debug("Dropped index {old}".format(old=old_index_name))
                             cursor.execute("DROP INDEX {old};".format(old=old_index_name))
 
