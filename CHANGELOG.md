@@ -1,3 +1,17 @@
+<a name="v0.16.0"></a>
+## v0.16.0 (2018-01-10)
+
+
+#### Bug Fixes
+
+*   Support lack of --exclude-index on some platforms ([4c16e976](4c16e976))
+
+#### Features
+
+*   Allow creation on separate tabelspaces ([41b8ba17](41b8ba17))
+
+
+
 <a name="0.15.0"></a>
 ## 0.15.0 (2017-04-07)
 
