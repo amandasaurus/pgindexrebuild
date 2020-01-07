@@ -227,7 +227,8 @@ def main():
         handler.setFormatter(logging.Formatter('pgindexrebuild[{pid}]: %(levelname)s: %(message)s'.format(pid=os.getpid())))
         logger.addHandler(handler)
 
-    # Ensure we always have at least one handler. Otherwise with --no-log-syslog --no-log-stdout there'd be an error
+    # Ensure we always have at least one handler. Otherwise with
+    # --no-log-syslog --no-log-stdout there'd be an error
     logger.addHandler(logging.NullHandler())
 
     connect_args = {}
