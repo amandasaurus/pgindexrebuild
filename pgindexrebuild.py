@@ -16,6 +16,7 @@ import os
 import fcntl
 from contextlib import contextmanager
 import time
+import commands
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -210,7 +211,11 @@ def main():
     parser.add_argument('--concurrent', action="store_true", dest="concurrent", help="Build indexes CONCURRENTLY (default)", default=True)
     parser.add_argument('--no-concurrent', action="store_false", dest="concurrent", help="Don't building CONCURRENTLY")
 
+
     parser.add_argument("--tablespaces", required=False, metavar="TABLESPACE,TABLESPACE,", help="Comma separated list of tablespaces to use. The first tablespace which exists will be used. Without this and the default pg_default will be used", default="pg_default");
+
+    parser.add_argument('--pre-rebuild-command')
+    parser.add_argument('--post-rebuild-command')
 
     args = parser.parse_args()
 
@@ -432,6 +437,11 @@ def main():
 
                         # (Re-)Create the new index
                         logger.debug("Index creation SQL: {}".format(obj['indexdef']))
+                        if args.pre_rebuild_command:
+                            logger.debug("About to run pre-rebuild command: {}".format(args.pre_rebuild_command))
+                            (status, output) = commands.getstatusoutput(args.pre_rebuild_command)
+
+                            logger.debug("Pre-rebuild command of {}, status code: {} output: {}".format(args.pre_rebuild_command, status, output))
                         try:
 
                             index_attempt = 1
@@ -481,6 +491,13 @@ def main():
                             logger.debug("Renaming old index ({old}) back to original name ({t})".format(old=old_index_name, t=obj['name']))
                             cursor.execute("ALTER INDEX {old} RENAME TO {t};".format(t=obj['name'], old=old_index_name))
                             raise
+
+                        finally:
+                            if args.post_rebuild_command:
+                                logger.debug("About to run post-rebuild command: {}".format(args.post_rebuild_command))
+                                (status, output) = commands.getstatusoutput(args.post_rebuild_command)
+
+                                logger.debug("Post-rebuild command of {}, status code: {} output: {}".format(args.post_rebuild_command, status, output))
 
 
                         # Analyze the new index.
