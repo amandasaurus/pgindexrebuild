@@ -3,7 +3,7 @@ Reindexes indexes to save space, but does it in a non-locking manner.
 
 This recovers space from index bloat.
 """
-from __future__ import division
+
 import argparse
 import psycopg2
 import psycopg2.extras
@@ -16,7 +16,7 @@ import os
 import fcntl
 from contextlib import contextmanager
 import time
-import commands
+import subprocess
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -142,7 +142,7 @@ def indexsizes(cursor):
                 'invalid_index': False,
             }
 
-    objs = objs.values()
+    objs = list(objs.values())
     objs.sort(key=lambda t: t['wasted'])
 
     # TODO should probably do this in the SQL query above.
@@ -439,7 +439,7 @@ def main():
                         logger.debug("Index creation SQL: {}".format(obj['indexdef']))
                         if args.pre_rebuild_command:
                             logger.debug("About to run pre-rebuild command: {}".format(args.pre_rebuild_command))
-                            (status, output) = commands.getstatusoutput(args.pre_rebuild_command)
+                            (status, output) = subprocess.getstatusoutput(args.pre_rebuild_command)
 
                             logger.debug("Pre-rebuild command of {}, status code: {} output: {}".format(args.pre_rebuild_command, status, output))
                         try:
@@ -495,7 +495,7 @@ def main():
                         finally:
                             if args.post_rebuild_command:
                                 logger.debug("About to run post-rebuild command: {}".format(args.post_rebuild_command))
-                                (status, output) = commands.getstatusoutput(args.post_rebuild_command)
+                                (status, output) = subprocess.getstatusoutput(args.post_rebuild_command)
 
                                 logger.debug("Post-rebuild command of {}, status code: {} output: {}".format(args.post_rebuild_command, status, output))
 

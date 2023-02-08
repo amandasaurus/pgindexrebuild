@@ -25,6 +25,6 @@ setup(
         'Operating System :: Unix',
         'Topic :: Database :: Database Engines/Servers',
         'Topic :: System :: Systems Administration',
-        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
     ],
 )
