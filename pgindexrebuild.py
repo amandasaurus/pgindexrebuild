@@ -25,8 +25,12 @@ MAX_INDEX_ATTEMPTS = 10
 
 def version():
     """Returns the version installed via pip"""
-    import pkg_resources
-    return pkg_resources.require("pgindexrebuild")[0].version
+    try:
+        import pkg_resources
+        return pkg_resources.require("pgindexrebuild")[0].version
+    except pkg_resources.DistributionNotFound:
+        # Happens when running directly
+        return "source"
 
 def make_indexdef_concurrent(indexdef):
     """Turn an index creation statement into a concurrent index creationstatement."""
