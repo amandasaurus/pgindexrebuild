@@ -81,7 +81,7 @@ By default it will not rebuild any invalid indexes.
 
 ## Copyright
 
-Copyright © 2016 Rory McCann <rory@technomancy.org> - Licenced under the GNU GPL v3 or later
+Copyright © 2016, 2023 Amanda McCann <amanda@technomancy.org> - Licenced under the GNU GPL v3 or later
 
 ### Hacking / Contributing
 

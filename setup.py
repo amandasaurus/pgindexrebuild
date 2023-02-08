@@ -3,12 +3,12 @@ from setuptools import setup
 setup(
     name="pgindexrebuild",
     version="0.17.0rc1",
-    author="Rory McCann",
-    author_email="rory@geofabrik.de",
+    author="Amanda McCann",
+    author_email="amanda@geofabrik.de",
     py_modules=['pgindexrebuild'],
     platforms=['any',],
     license = 'GPLv3+',
-    url = 'https://github.com/rory/pgindexrebuild',
+    url = 'https://github.com/amandasaurus/pgindexrebuild',
     install_requires=[
         'psycopg2',
         "humanfriendly",
